@@ -1,7 +1,21 @@
 ARG bashver=latest
 
-FROM bash:${bashver}
-ARG TINI_VERSION=v0.19.0
+# FROM bash:${bashver}
+FROM centos:7
+ENV container docker
+RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == \
+systemd-tmpfiles-setup.service ] || rm -f $i; done); \
+rm -f /lib/systemd/system/multi-user.target.wants/*;\
+rm -f /etc/systemd/system/*.wants/*;\
+rm -f /lib/systemd/system/local-fs.target.wants/*; \
+rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
+rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
+rm -f /lib/systemd/system/basic.target.wants/*;\
+rm -f /lib/systemd/system/anaconda.target.wants/*;
+VOLUME [ "/sys/fs/cgroup" ]
+RUN yum install -y wget
+
+# ARG TINI_VERSION=v0.19.0
 ARG TARGETPLATFORM
 ARG LIBS_VER_SUPPORT=0.3.0
 ARG LIBS_VER_FILE=0.4.0
@@ -20,9 +34,10 @@ LABEL org.opencontainers.image.url="https://hub.docker.com/r/bats/bats"
 LABEL org.opencontainers.image.source="https://github.com/bats-core/bats-core"
 LABEL org.opencontainers.image.base.name="docker.io/bash"
 
+
 COPY ./docker /tmp/docker
 # default to amd64 when not running in buildx environment that provides target platform
-RUN /tmp/docker/install_tini.sh "${TARGETPLATFORM-linux/amd64}"
+# RUN /tmp/docker/install_tini.sh "${TARGETPLATFORM-linux/amd64}"
 # Install bats libs
 RUN /tmp/docker/install_libs.sh support ${LIBS_VER_SUPPORT}
 RUN /tmp/docker/install_libs.sh file ${LIBS_VER_FILE}
@@ -31,13 +46,15 @@ RUN /tmp/docker/install_libs.sh detik ${LIBS_VER_DETIK}
 
 # Install parallel and accept the citation notice (we aren't using this in a
 # context where it make sense to cite GNU Parallel).
-RUN apk add --no-cache parallel ncurses && \
+RUN yum install parallel ncurses && \
     mkdir -p ~/.parallel && touch ~/.parallel/will-cite \
     && mkdir /code
 
 RUN ln -s /opt/bats/bin/bats /usr/local/bin/bats
 COPY . /opt/bats/
 
-WORKDIR /code/
+WORKDIR /opt/bats/test
 
-ENTRYPOINT ["/tini", "--", "bash", "bats"]
+# ENTRYPOINT ["/usr/sbin/init", "--", "bash", "echo hi"]
+ENTRYPOINT ["bats", "/opt/bats/test"]
+
