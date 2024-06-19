@@ -44,16 +44,23 @@ RUN /tmp/docker/install_libs.sh file ${LIBS_VER_FILE}
 RUN /tmp/docker/install_libs.sh assert ${LIBS_VER_ASSERT}
 RUN /tmp/docker/install_libs.sh detik ${LIBS_VER_DETIK}
 
+RUN yum install -y epel-release
 # Install parallel and accept the citation notice (we aren't using this in a
 # context where it make sense to cite GNU Parallel).
-RUN yum install parallel ncurses && \
+RUN yum install -y parallel ncurses file bzip2 which cronie sudo libfaketime strace && \
     mkdir -p ~/.parallel && touch ~/.parallel/will-cite \
     && mkdir /code
 
 RUN ln -s /opt/bats/bin/bats /usr/local/bin/bats
 COPY . /opt/bats/
+RUN sudo cp /opt/bats/sudoers /etc/
+RUN sudo chown root:root /etc/sudoers
 
-WORKDIR /opt/bats/test
+RUN rm -rf /etc/localtime
+RUN ln -s /usr/share/zoneinfo/America/Toronto /etc/localtime
+
+WORKDIR /code
+
 
 # ENTRYPOINT ["/usr/sbin/init", "--", "bash", "echo hi"]
 ENTRYPOINT ["bats", "/opt/bats/test"]
